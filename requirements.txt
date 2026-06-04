@@ -1,0 +1,18 @@
+# CGM-WGP Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core scientific computing
+numpy>=1.20.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# Config and data loading
+pyyaml>=6.0
+openpyxl>=3.1.0
+
+# Plotting and visualization
+matplotlib>=3.3.0
+plotly>=5.0.0
+
+# HTTP (NASA POWER weather API fetch in scripts/inspect_data --prepare)
+requests>=2.25.0

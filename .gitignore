@@ -1,0 +1,113 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+*.Rout
+*.Rcheck/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.ipynb_checkpoints/
+.claude/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific temporary outputs
+FIRST RUN output/
+*.log
+*.tmp
+
+# Test outputs
+test_*.csv
+debug_*.csv
+tmp_*.csv
+
+# ── Paper-repo polish: untracked but kept locally ──────────────────────
+# Raw data for non-paper crops (regenerable from external sources)
+pipeline/1_data/Sorghum/
+pipeline/1_data/Soybean/
+pipeline/1_data/.Rapp.history
+pipeline/1_data/_old_outputs/
+pipeline/1_data/Broccoli/simulated_alphas.csv
+pipeline/1_data/Broccoli/simulated_betas.csv
+
+# Genomic data for non-paper crops
+pipeline/2_gmatrix/Soybean/
+pipeline/2_gmatrix/Soybean_RM*/
+pipeline/2_gmatrix/Sorghum/
+
+# Non-paper crop configs (kept locally for development)
+configs/sorghum.yaml
+configs/sorghum_nofit.yaml
+configs/soybean.yaml
+
+# Weather files for sites not used by the paper (Beans uses CIT/ND/PAL/POP/PR,
+# Broccoli uses FL_Hasting). Kept locally for development across other crops.
+pipeline/1_data/weather/IA10/
+pipeline/1_data/weather/IA10_C/
+pipeline/1_data/weather/IA10_L/
+pipeline/1_data/weather/IA_loc*/
+pipeline/1_data/weather/IL_loc*/
+pipeline/1_data/weather/IN_loc*/
+pipeline/1_data/weather/KS_loc*/
+pipeline/1_data/weather/MI_loc*/
+pipeline/1_data/weather/MN_loc*/
+pipeline/1_data/weather/MO_loc*/
+pipeline/1_data/weather/ND_loc*/
+pipeline/1_data/weather/NE*/
+pipeline/1_data/weather/OH_loc*/
+pipeline/1_data/weather/SC*/
+pipeline/1_data/weather/TX*/
+pipeline/1_data/weather/2024 SOYGEN*
+
+# Legacy R-pipeline folders (pre-Python rewrite; kept locally for history)
+pipeline/3_cv_prep/
+pipeline/4_alpha_models/
+pipeline/4_beta_models/
+pipeline/5_results/
+
+# Everything under pipeline/output/ is local — runs, plots, comparisons,
+# figures, paper artifacts, etc. The directory itself is preserved on the
+# remote via pipeline/output/.gitkeep so `python -m cgm_wgp.app` finds it.
+pipeline/output/*
+!pipeline/output/.gitkeep
+
+# Local-only documentation (brainstorms, planning notes, slide decks)
+local-notes/
+
+# Historical development artifacts (kept local)
+archive/
+4.run.Models/
+Charlie Scripts/
+1.root.Data/
+alpha_beta_results*.csv
+generate_explainer_pdf.py
+NOTES.txt
+CGM_WGP_Model_Equations_Explained.pdf

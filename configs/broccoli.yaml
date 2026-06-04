@@ -1,0 +1,106 @@
+crop: Broccoli
+
+phenotypes:
+  source: pipeline/1_data/Broccoli/phenotypes_dated.csv
+  format: pipeline_ready
+
+weather:
+  source: pipeline/1_data/weather/FL_Hasting
+  format: single_location
+
+genomics:
+  tier: evd
+  evd_path: pipeline/2_gmatrix/Broccoli/EVD.rda
+  gmatrix_path: pipeline/2_gmatrix/Broccoli/Gmatrix.rda
+
+locations:
+  "Planting 1":
+    latitude: 29.7
+  "Planting 2":
+    latitude: 29.7
+  "Planting 3":
+    latitude: 29.7
+  "Planting 4":
+    latitude: 29.7
+  "Planting 5":
+    latitude: 29.7
+  "Planting 6":
+    latitude: 29.7
+
+model:
+  Tb: 5.0
+  Topt: 25.0
+  Tc: 40.0
+  alpha_bounds: [0.5, 8.0]
+  beta_bounds: [0.5, 8.0]
+  fit_topt: false
+  exclude_genotypes: ["FA306", "FA125"]  # contained bad data
+  # Methods to run. Remove entries to skip them. If omitted, all methods run.
+  methods: [mechanistic, gblup, rn_gblup]
+  # CGM-WGP (Messina et al. 2006, Technow et al. 2015, Cooper et al. 2016)
+  # Hadley additive photoperiod coupling.
+  joint_fit:
+    enabled: true
+    photo_enabled: true
+    # Hadley additive, long-day response: penalty applies when DL < Pc
+    # (short days delay flowering for Brassicas). S_g >= 0 is a rate-penalty
+    # per hour of photoperiod deficit.
+    photo_direction: long_day
+    Tb: 5.0
+    Topt: 20.0
+    Tc: 30.0
+    a_fixed: 1.0
+    Theta_bounds: [5.0, 200.0]
+    S_bounds: [0.0, 0.3]
+    Pc_bounds: [11.0, 15.0]
+    max_em_iters: 50
+    em_tol: 0.0001
+    lbfgsb_maxiter: 1000
+  # train/predict set per-run via CLI for group-based LOO CV
+  iterative:
+    obs_perturbation_sd_auto: true
+  # Logistic3 photoperiod.
+  # Broccoli is long-day → negative b in g(DL). See TECHNICAL.md for architecture.
+  # NOTE: single-location (FL_Hasting) means seasonal daylength variation is
+  # the only photo signal. Dual-threshold coupling avoids multiplicative
+  # confounding by keeping thermal and photo as independent state variables.
+  photoperiod:
+    type: long_day
+    model: logistic3
+    coupling: dual_threshold   # auto-enables --mech-dual-threshold
+    a_bounds: [0.1, 5.0]
+    b_bounds: [-5.0, 0.0]    # constrained ≤0 via photo_type=long_day
+    d_bounds: [10.0, 18.0]
+  # RN-GBLUP with photoperiod kernel (P_K + G⊙P)
+  rn_gblup:
+    use_photoperiod: true
+
+# Cross-validation schemes — four testing scenarios.
+# (see configs/beans.yaml for detailed descriptions)
+cv:
+  individual:
+    leave_one_out: true
+
+  # 1. GxE Sparse Testing
+  balanced_training_subset:
+    train_fraction: 0.8
+    repetitions: 5
+    random_seed: 42
+
+  # 2. New Varieties
+  new_varieties:
+    train_fraction: 0.8
+    repetitions: 5
+    random_seed: 42
+
+  # 3. New Location (leave-one-env-out)
+  # Each fold trains on ALL plantings except one, predicts the held-out one.
+  # Every genotype remains in training — this is pure env novelty.
+  # Replaces the old 3/3 yearly split which made the novelty gap too wide.
+  yearly:
+    leave_one_out: true
+
+  # 4. New Program
+  cv00_double_novelty:
+    train_fraction: 0.8
+    random_seed: 42

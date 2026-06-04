@@ -1,0 +1,163 @@
+crop: Beans
+
+phenotypes:
+  source: "pipeline/1_data/Beans/3. RIJC Data.xlsx"
+  format: excel
+  sheet: Phenotypes
+  layout: wide
+  genotype_col: RIL
+  ft_columns:
+    CIT: R1-CIT
+    ND: R1-ND
+    PAL: R1-PAL
+    POP: R1-POP
+    PR: R1-PR
+  missing_value: "-"
+  planting_dates:
+    CIT: "2011-03-24"
+    ND: "2012-05-16"
+    PAL: "2011-11-11"
+    POP: "2012-03-22"
+    PR: "2012-02-06"
+
+weather:
+  source: "pipeline/1_data/Beans/2. Daily_Weather_Data.csv"
+  format: combined_csv
+  site_column: SITE
+  date_format: year_doy
+  year_col: YEAR
+  doy_col: DOY
+  tmax_col: Tmax
+  tmin_col: Tmin
+
+genomics:
+  tier: markers
+  source: "pipeline/1_data/Beans/3. RIJC Data.xlsx"
+  format: excel
+  sheet: Genotypes
+  genotype_col: MkID
+  metadata_rows: 3
+  marker_coding: biallelic_12
+  missing_value: "-"
+
+locations:
+  CIT:
+    latitude: 10.0
+  ND:
+    latitude: 46.9
+  PAL:
+    latitude: 18.2
+  POP:
+    latitude: 19.0
+  PR:
+    latitude: 18.2
+
+model:
+  Tb: 10.0
+  Topt: 25.0
+  Tc: 38.0
+  methods: [mechanistic, gblup, rn_gblup]
+  # CGM-WGP (Messina et al. 2006, Technow et al. 2015, Cooper et al. 2016):
+  # EM+L-BFGS-B joint fitting of per-genotype (Theta, S, Pc) under a
+  # multivariate normal genomic prior. Runs as a separate comparison
+  # method alongside mech / GBLUP / RN-GBLUP.
+  joint_fit:
+    enabled: true
+    photo_enabled: true
+    Theta_bounds: [5, 200]
+    # Hadley additive: S_g is rate-penalty per hour of DL excess (>=0 short-day).
+    # Pc_g is critical daylength (h). Literature for common bean: Pc ≈ 12.5–14 h.
+    S_bounds: [0.0, 0.3]
+    Pc_bounds: [11, 15]
+    max_em_iters: 50
+  # Photoperiod response for mech+photo coupling.
+  #
+  # Two shapes supported (config-driven):
+  #
+  #   logistic3 (Messina) — DEFAULT for Beans
+  #     g(DL) = 1 / (1 + a * exp(b * (DL - d)))
+  #     Smooth sigmoid, no hard floor (floor = 1/(1+a) > 0).
+  #     Fit via direct DAP-error loss using per-genotype (alpha, beta).
+  #     Photo-only diagnostic showed this is the winning shape for Beans
+  #     (CV2 MAE ~3.8 vs linear_plateau's catastrophic failure at ND).
+  #
+  #   linear_plateau (Grimm 1993)
+  #     F(N) operates on NIGHT length (= 24 - daylength).
+  #     Hard floor at n_min causes catastrophic blow-up on wide-latitude
+  #     crops like Beans (ND extrapolation failure). Kept available for
+  #     crops where it's appropriate.
+  #     F(N) = 0                              if N <= n_min
+  #     F(N) = (N - n_min) / (n_opt - n_min)  if n_min < N < n_opt
+  #     F(N) = 1                              if N >= n_opt
+  #
+  photoperiod:
+    model: logistic3
+    # Dual-threshold coupling: thermal and photo are INDEPENDENT state
+    # variables, each with its own per-genotype threshold, combined via
+    # pred_dap = max(day_thermal, day_photo). Beats multiplicative coupling
+    # (thermal × photo) on all tested scenarios. See TECHNICAL.md.
+    coupling: dual_threshold
+    # Logistic3 shape bounds
+    a_bounds: [0.1, 5.0]     # amplitude (floor = 1/(1+a))
+    b_bounds: [-5.0, 5.0]    # slope (negative = short-day plants)
+    d_bounds: [10.0, 18.0]   # inflection point (daylength hours at half-max)
+    # Linear-plateau shape bounds (unused when model=logistic3; kept for reference)
+    n_min_bounds: [6.0, 14.0]
+    n_opt_bounds: [8.0, 16.0]
+
+  # RN-GBLUP (Jarquín 2014) reaction norm extension:
+  #   y = µ + g + e + p + ge + gp + ε   (6 variance components)
+  # Adds a photoperiod environmental kernel P_K (built from per-env Mean/Min/Max
+  # daylength and Mean night length) and a G⊙P interaction kernel.
+  # Beans spans 10–47°N → but limited photoperiod variation across sites
+  # (see Cabrera et al. 2026).
+  rn_gblup:
+    use_photoperiod: true
+
+# Cross-validation schemes — four testing scenarios.
+#
+# 1. GxE Sparse Testing (balanced_training_subset)
+#    Can we fill missing (genotype × environment) cells when both G and E
+#    are partially observed? 80/20 cell-level split per env, 5 reps.
+#    Invoke: --cv-scheme balanced_training_subset
+#
+# 2. New Varieties (new_varieties)
+#    Can the G-matrix predict a genotype never phenotyped in ANY env?
+#    Whole-genotype holdout (20%), 5 reps.
+#    Invoke: --cv-scheme new_varieties
+#
+# 3. New Location (geographic folds)
+#    Can we predict a site-year the model has never seen?
+#    LOO by geographic group (tropical ↔ temperate).
+#    Invoke: --cv-scheme geographic
+#
+# 4. New Program (cv00_double_novelty)
+#    Can we predict unseen genotypes in unseen environments?
+#    Joint novelty: held-out env × 20% held-out genotypes, 1 fold per env.
+#    Invoke: --cv-scheme cv00_double_novelty
+cv:
+  individual:
+    leave_one_out: true
+
+  # 1. GxE Sparse Testing
+  balanced_training_subset:
+    train_fraction: 0.8
+    repetitions: 5
+    random_seed: 42
+
+  # 2. New Varieties
+  new_varieties:
+    train_fraction: 0.8
+    repetitions: 5
+    random_seed: 42
+
+  # 3. New Location (leave-one-env-out)
+  # Each fold trains on ALL envs except one, predicts the held-out env.
+  # Every genotype remains in training — this is env novelty.
+  geographic:
+    leave_one_out: true
+
+  # 4. New Program
+  cv00_double_novelty:
+    train_fraction: 0.8
+    random_seed: 42
